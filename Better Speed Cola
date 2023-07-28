@@ -1,0 +1,52 @@
+#include maps\mp\_utility;
+#include common_scripts\utility;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\zombies\_zm_perks;
+
+init()
+{
+    for(;;)
+    {
+        level waittill("connected", player);
+        player thread onplayerspawned();
+    }
+}
+
+onplayerspawned()
+{
+     self thread SpeedColaRemade();
+}
+
+SpeedColaRemade()
+{
+	self endon( "disconnect" );
+
+	for ( ;; )
+	{
+		self waittill_any("perk_acquired", "perk_lost");
+
+		if (self HasPerk("specialty_fastreload"))
+		{
+			self SetPerk("specialty_fastads");
+			self SetPerk("specialty_fastweaponswitch");
+			self Setperk( "specialty_fasttoss" );
+			self SetPerk( "specialty_fastequipmentuse" );
+			self SetPerk( "specialty_fastmantle" );
+			self SetPerk( "specialty_fastladderclimb" );
+			Self SetPerk( "specialty_fastmeleerecovery" );
+			Self SetPerk( "specialty_pin_back" );
+		}
+		else
+		{
+			self UnsetPerk("specialty_fastads");
+			self UnsetPerk("specialty_fastweaponswitch");
+			self Unsetperk( "specialty_fasttoss" );
+			self UnsetPerk( "specialty_fastequipmentuse" );
+			self UnsetPerk( "specialty_fastladderclimb" );
+			Self UnsetPerk( "specialty_fastmeleerecovery" );
+			Self UnsetPerk( "specialty_fastmantle" );
+			Self UnsetPerk( "specialty_pin_back" );
+		}
+	}
+}
