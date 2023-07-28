@@ -1,0 +1,47 @@
+#include maps\mp\_utility;
+#include common_scripts\utility;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\zombies\_zm;
+
+main()
+{
+
+  replaceFunc(maps\mp\zombies\_zm::ai_calculate_health, ::ai_calculate_health);
+}
+
+
+
+ai_calculate_health( round_number )
+{
+	level.zombie_health = level.zombie_vars[ "zombie_health_start" ];
+	max_health = 100000; //Change this value the 100k equals round 58 health
+	i = 2;
+
+	while ( i <= round_number )
+	{
+		if( level.zombie_health > max_health )
+		{
+			level.zombie_health = max_health;
+			return;
+		}
+
+		if ( i >= 10 )
+		{
+			old_health = level.zombie_health;
+			level.zombie_health = level.zombie_health + int( level.zombie_health * level.zombie_vars[ "zombie_health_increase_multiplier" ] );
+
+			if ( level.zombie_health < old_health )
+			{
+				level.zombie_health = old_health;
+				return;
+			}
+
+			i++;
+			continue;
+		}
+
+		level.zombie_health = int( level.zombie_health + level.zombie_vars[ "zombie_health_increase" ] );
+		i++;
+	}
+}
+
