@@ -30,14 +30,14 @@ onplayerspawned()
 
      self waittill("spawned_player");
 
-     self thread maps\mp\zm_tomb_utility::update_staff_accessories();
 
      self giveweapon("staff_water_upgraded_zm");
+     self thread maps\mp\zm_tomb_utility::update_staff_accessories();
      //self giveweapon("staff_fire_upgraded_zm");
      //self giveweapon("staff_air_upgraded_zm");
      //self giveweapon("staff_lightning_upgraded_zm");
      //those are the upgraded staff names ONLY give one of them
-     //" self thread maps\mp\zm_tomb_utility::update_staff_accessories(); " is what makes giving upgraded staffs work
+     //" self thread maps\mp\zm_tomb_utility::update_staff_accessories(); " is what makes giving upgraded staffs work and must go after giveweapon
 		
 
 
