@@ -1,3 +1,190 @@
+#include maps\mp\_utility;
+#include common_scripts\utility;
+#include maps\mp\gametypes_zm\_hud_util;
+#include maps\mp\zombies\_zm;
+#include maps\mp\zombies\_zm_utility;
+#include maps\mp\zombies\_zm_weapons;
+#include maps\mp\zombies\_zm_stats;
+#include maps\mp\gametypes_zm\_hud_message;
+#include maps\mp\zombies\_zm_powerups;
+#include maps\mp\zombies\_zm_perks;
+#include maps\mp\zombies\_zm_audio;
+#include maps\mp\zombies\_zm_score;
+#include maps\mp\zombies\_zm_laststand;
+#include maps\mp\zombies\_zm_ai_ghost_ffotd;
+#include maps\mp\zombies\_zm_ai_ghost;
+#include maps\_utility;
+#include maps\mp\zombies\_zm_spawner;
+#include maps\mp\zombies\_zm_magicbox;
+#include maps\mp\zombies\_zm_pers_upgrades_functions;
+#include maps\mp\zm_alcatraz_sq;
+
+
+init() {
+   	level thread onPlayerConnect();
+   	setDvar("bank_withdraw", "");
+  	setDvar("bank_deposit", "");
+	replaceFunc(maps\mp\zombies\_zm_score::get_points_multiplier, ::get_points_multiplier_new);
+	replaceFunc(maps\mp\zombies\_zm_utility::init_zombie_run_cycle, ::CUSTOM_init_zombie_run_cycle);
+	replaceFunc(maps\mp\zombies\_zm_pers_upgrades_functions::pers_sniper_score_reward, ::pers_sniper_score_reward_new); //suv fix ranking reward
+	level thread playerBank(); // Needed for NSM
+	level thread roundLogger();	// Stats plugin
+	// PHP and Mule on Town
+	startInit(); //precaching models
+
+	thread startCustomPerkMachines(); //custom perk machines
+	level.afterlife_save_loadout = ::save_afterlife_loadout;
+	waittillframeend;
+	level.afterlife_give_loadout = ::give_afterlife_loadout; //override function that gives loadout back to the player.
+	level.playerDamageStub = level.callbackplayerdamage; //damage callback for phd flopper
+	level.callbackplayerdamage = ::phd_flopper_dmg_check; //more damage callback stuff. everybody do the flop
+	isTown(); //jezuzlizard's fix for tombstone :)
+	precacheshader("damage_feedback");
+	precacheshader("zm_riotshield_tomb_icon");
+	precacheshader("zm_riotshield_hellcatraz_icon");
+	precacheshader("menu_mp_fileshare_custom");
+	//level thread onPlayerConnect();
+	level thread timer_hud(); // round timer
+	level thread roundLock(); // High round lock ------------------------------------------------
+	onPlayerSay(::callbackPlayerSay);
+
+
+	//level thread onPlayerConnect();
+
+	//Fix no zombies spawned
+	replaceFunc( maps\mp\animscripts\zm_utility::wait_network_frame, ::wait_network_frame_override );
+	replaceFunc( maps\mp\zombies\_zm_utility::wait_network_frame, ::wait_network_frame_override );
+
+
+
+	//Top Round Tracker
+	thread high_round_tracker();
+	thread high_round_trackerv2();
+	thread high_round_trackerv3();
+	thread high_round_trackerv4();
+	thread high_round_trackerv5();
+	thread high_round_trackerv6();
+	
+	//Magix Box limits
+	replaceFunc(maps\mp\zombies\_zm_magicbox::treasure_chest_canplayerreceiveweapon, ::treasure_chest_canplayerreceiveweapon_new);
+	
+	level.custom_vending_precaching = ::default_vending_precaching;
+
+	
+
+}
+
+
+	
+give_afterlife_loadout()
+{
+
+	self takeallweapons();
+	loadout = self.loadout;
+	primaries = self getweaponslistprimaries();
+	if ( loadout.weapons.size > 1 || primaries.size > 1 )
+	{
+		foreach ( weapon in primaries )
+		{
+			self takeweapon( weapon );
+		}
+	}
+	i = 0;
+	while ( i < loadout.weapons.size )
+	{
+
+		if ( !isDefined( loadout.weapons[ i ] ) )
+		{
+			i++;
+
+			continue;
+		}
+		if ( loadout.weapons[ i ][ "name" ] == "none" )
+		{
+			i++;
+
+			continue;
+		}
+		self maps\mp\zombies\_zm_weapons::weapondata_give( loadout.weapons[ i ] );
+		i++;
+	}
+	self setspawnweapon( loadout.weapons[ loadout.current_weapon ] );
+	self switchtoweaponimmediate( loadout.weapons[ loadout.current_weapon ] );
+	if ( isDefined( self get_player_melee_weapon() ) )
+	{
+		self giveweapon( self get_player_melee_weapon() );
+	}
+	self maps\mp\zombies\_zm_equipment::equipment_give( self.loadout.equipment );
+	if ( isDefined( loadout.hasclaymore ) && loadout.hasclaymore && !self hasweapon( "claymore_zm" ) )
+	{
+		self giveweapon( "claymore_zm" );
+		self set_player_placeable_mine( "claymore_zm" );
+		self setactionslot( 4, "weapon", "claymore_zm" );
+		self setweaponammoclip( "claymore_zm", loadout.claymoreclip );
+	}
+	if ( isDefined( loadout.hasemp ) && loadout.hasemp )
+	{
+		self giveweapon( "emp_grenade_zm" );
+		self setweaponammoclip( "emp_grenade_zm", loadout.empclip );
+	}
+	if ( isDefined( loadout.hastomahawk ) && loadout.hastomahawk )
+	{
+		self giveweapon( self.current_tomahawk_weapon );
+		self set_player_tactical_grenade( self.current_tomahawk_weapon );
+		self setclientfieldtoplayer( "tomahawk_in_use", 1 );
+	}
+	self.score = loadout.score;
+	perk_array = maps\mp\zombies\_zm_perks::get_perk_array( 1 );
+	i = 0;
+	while ( i < perk_array.size )
+	{
+		perk = perk_array[ i ];
+		self unsetperk( perk );
+		self set_perk_clientfield( perk, 0 );
+		i++;
+	}
+	if (self.keep_perks)
+	{
+		if(isdefined(self.hadPHD) && self.hadPHD)
+		{
+			self.hasPHD = true;
+			self.hadPHD = undefined;
+			self thread drawCustomPerkHUD("specialty_doubletap_zombies", 0, (1, 0.25, 1));
+		}
+		if(isdefined(self.hadStaminUp) && self.hadStaminUp){
+			self thread delayed_staminup();
+		}
+	}
+	if ( isDefined( self.keep_perks ) && self.keep_perks && isDefined( loadout.perks ) && loadout.perks.size > 0 )
+	{
+		i = 0;
+		while ( i < loadout.perks.size )
+		{
+			if ( self hasperk( loadout.perks[ i ] ) )
+			{
+				i++;
+				continue;
+			}
+			if ( loadout.perks[ i ] == "specialty_quickrevive" && flag( "solo_game" ) )
+			{
+				level.solo_game_free_player_quickrevive = 1;
+			}
+			if ( loadout.perks[ i ] == "specialty_longersprint" )
+			{
+				self setperk( "specialty_longersprint" ); //removes the staminup perk functionality
+				self.hasStaminUp = true; //resets the staminup variable
+				self thread drawCustomPerkHUD("specialty_juggernaut_zombies", 0, (1, 1, 0));
+				arrayremovevalue( loadout.perks, "specialty_longersprint" );
+
+				continue;
+			}
+			if ( loadout.perks[ i ] == "specialty_additionalprimaryweapon" )
+			{
+				self setperk( "specialty_additionalprimaryweapon"); //removes the deadshot perk functionality
+				self.hasMuleKick = true; //resets the deadshot variable
+				self thread drawCustomPerkHUD("specialty_fastreload_zombies", 0, (0, 0.7, 0));
+				arrayremovevalue( loadout.perks, "specialty_additionalprimaryweapon" );
+				continue;
 			}
 			if ( loadout.perks[ i ] == "specialty_finalstand" )
 			{
@@ -104,4 +291,24 @@ afterlife_save_perks( ent ) //checked changed to match cerberus output
 		ent unsetperk( perk );
 	}
 	return perk_array;
+}
+onPlayerRevived()
+{
+	self endon("disconnect");
+	level endon("end_game");
+	
+	for(;;)
+	{
+		self waittill_any( "whos_who_self_revive","player_revived","fake_revive","do_revive_ended_normally", "al_t" );
+		wait 1;
+		if(isdefined(self.hadPHD) && self.hadPHD && getDvar("mapname") != "zm_prison")
+		{
+			//self setperk( "PHD_FLOPPER" ); //removes the staminup perk functionality
+			self.hasPHD = true;
+			self.hadPHD = undefined;
+			self thread drawCustomPerkHUD("specialty_doubletap_zombies", 0, (1, 0.25, 1));
+		}
+		else
+			return;
+	}
 }
