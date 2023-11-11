@@ -1,0 +1,107 @@
+			}
+			if ( loadout.perks[ i ] == "specialty_finalstand" )
+			{
+				i++;
+				continue;
+			}
+			maps\mp\zombies\_zm_perks::give_perk( loadout.perks[ i ] );
+			i++;
+			wait 0.05;
+		}
+	}
+	self.keep_perks = undefined;
+	self set_player_lethal_grenade( self.loadout.lethal_grenade );
+	if ( loadout.grenade > 0 )
+	{
+		curgrenadecount = 0;
+		if ( self hasweapon( self get_player_lethal_grenade() ) )
+		{
+			self getweaponammoclip( self get_player_lethal_grenade() );
+		}
+		else
+		{
+			self giveweapon( self get_player_lethal_grenade() );
+		}
+		self setweaponammoclip( self get_player_lethal_grenade(), loadout.grenade + curgrenadecount );
+	}
+
+}
+
+delayed_staminup(){ //stamin up crash fix
+	while(isdefined(self.afterlife) && self.afterlife){
+		wait 0.05;
+	}
+	self.hasStaminUp = true;
+	self.hadStaminUp = undefined;
+	self setPerk("specialty_longersprint");
+	self thread drawCustomPerkHUD("specialty_juggernaut_zombies", 0, (1, 1, 0));
+}
+
+save_afterlife_loadout() //checked changed to match cerberus output
+{
+	if(isdefined(self.hasPHD) && self.hasPHD){
+		self.hadPHD = 1;
+	}
+	if(isdefined(self.hasStaminUp) && self.hasStaminUp){
+		self.hadStaminUp = 1;
+	}
+	primaries = self getweaponslistprimaries();
+	currentweapon = self getcurrentweapon();
+	self.loadout = spawnstruct();
+	self.loadout.player = self;
+	self.loadout.weapons = [];
+	self.loadout.score = self.score;
+	self.loadout.current_weapon = -1;
+	index = 0;
+	foreach ( weapon in primaries )
+	{
+		self.loadout.weapons[ index ] = maps\mp\zombies\_zm_weapons::get_player_weapondata( self, weapon );
+		if ( weapon == currentweapon || self.loadout.weapons[ index ][ "alt_name" ] == currentweapon )
+		{
+			self.loadout.current_weapon = index;
+		}
+		index++;
+	}
+	self.loadout.equipment = self get_player_equipment();
+	if ( isDefined( self.loadout.equipment ) )
+	{
+		self maps\mp\zombies\_zm_equipment::equipment_take( self.loadout.equipment );
+	}
+	if ( self hasweapon( "claymore_zm" ) )
+	{
+		self.loadout.hasclaymore = 1;
+		self.loadout.claymoreclip = self getweaponammoclip( "claymore_zm" );
+	}
+	if ( self hasweapon( "emp_grenade_zm" ) )
+	{
+		self.loadout.hasemp = 1;
+		self.loadout.empclip = self getweaponammoclip( "emp_grenade_zm" );
+	}
+	if ( self hasweapon( "bouncing_tomahawk_zm" ) || self hasweapon( "upgraded_tomahawk_zm" ) )
+	{
+		self.loadout.hastomahawk = 1;
+		self setclientfieldtoplayer( "tomahawk_in_use", 0 );
+	}
+	self.loadout.perks = afterlife_save_perks( self );
+	lethal_grenade = self get_player_lethal_grenade();
+	if ( self hasweapon( lethal_grenade ) )
+	{
+		self.loadout.grenade = self getweaponammoclip( lethal_grenade );
+	}
+	else
+	{
+		self.loadout.grenade = 0;
+	}
+	self.loadout.lethal_grenade = lethal_grenade;
+	self set_player_lethal_grenade( undefined );
+}
+
+afterlife_save_perks( ent ) //checked changed to match cerberus output
+{
+	perk_array = ent get_perk_array( 1 );
+	foreach ( perk in perk_array )
+	{
+		ent unsetperk( perk );
+	}
+	return perk_array;
+}
